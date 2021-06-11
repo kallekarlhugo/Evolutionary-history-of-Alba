@@ -1,0 +1,99 @@
+cp ../../filtering/popmap .
+vcffile=full_Ce_fixed_raw_june28.sorted.vcf
+vcftools  --vcf $vcffile --max-missing 0.5 --mac 3 --minQ 30 --recode --recode-INFO-all --out raw.g5mac3
+
+vcftools --vcf raw.g5mac3.recode.vcf --minDP 3 --recode --recode-INFO-all --out raw.g5mac3dp3
+
+
+../../filtering/ErrorCount.sh raw.g5mac3dp3.recode.vcf
+
+vcftools --vcf raw.g5mac3dp3.recode.vcf --missing-indv
+cat out.imiss
+# all looks good here
+
+vcftools --vcf raw.g5mac3dp3.recode.vcf --max-missing 0.95 --maf 0.05 --recode --recode-INFO-all --out DP3g95maf05 --min-meanDP 10
+
+# generate popmap SimpleID pheno
+mawk '$2 == "Al"' popmap > 1.keep && mawk '$2 == "Or"' popmap > 2.keep
+
+vcftools --vcf DP3g95maf05.recode.vcf --keep 1.keep --missing-site --out 1
+vcftools --vcf DP3g95maf05.recode.vcf --keep 2.keep --missing-site --out 2
+
+# remove the bad loci
+cat 1.lmiss 2.lmiss | mawk '!/CHR/' | mawk '$6 > 0.1' | cut -f1,2 >> badloci
+vcftools --vcf DP3g95maf05.recode.vcf --exclude-positions badloci --recode --recode-INFO-all --out DP3g95p5maf05
+
+mawk '/#/' DP3g95maf05.recode.vcf
+vcffilter -s -f "AB > 0.25 & AB < 0.75 | AB < 0.01" DP3g95p5maf05.recode.vcf > DP3g95p5maf05.fil1.vcf
+#vcffilter -f "SAF / SAR > 100 & SRF / SRR > 100 | SAR / SAF > 100 & SRR / SRF > 100" -s DP3g95p5maf05.fil1.vcf > DP3g95p5maf05.fil2.vcf
+vcffilter -f "MQM / MQMR > 0.9 & MQM / MQMR < 1.05" DP3g95p5maf05.fil1.vcf > DP3g95p5maf05.fil3.vcf
+# check pair status of allele vs alt allele
+vcffilter -f "PAIRED > 0.05 & PAIREDR > 0.05 & PAIREDR / PAIRED < 1.75 & PAIREDR / PAIRED > 0.25 | PAIRED < 0.05 & PAIREDR < 0.05" -s DP3g95p5maf05.fil3.vcf > DP3g95p5maf05.fil4.vcf
+
+
+# filter by quality and depth of alleles
+vcffilter -f "QUAL / DP > 0.25" DP3g95p5maf05.fil4.vcf > DP3g95p5maf05.fil5.vcf
+cut -f8 DP3g95p5maf05.fil5.vcf | grep -oe "DP=[0-9]*" | sed -s 's/DP=//g' > DP3g95p5maf05.fil5.DEPTH
+mawk '!/#/' DP3g95p5maf05.fil5.vcf | cut -f1,2,6 > DP3g95p5maf05.fil5.vcf.loci.qual
+mawk '{ sum += $1; n++ } END { if (n > 0) print sum / n; }' DP3g95p5maf05.fil5.DEPTH
+
+771.549
+
+python -c "print int(771.549+3*(771.549**0.5))"
+854
+paste DP3g95p5maf05.fil5.vcf.loci.qual DP3g95p5maf05.fil5.DEPTH | mawk -v x=854 '$4 > x' | mawk '$3 < 2 * $4' > DP3g95p5maf05.fil5.lowQDloci
+vcftools --vcf DP3g95p5maf05.fil5.vcf --site-depth --exclude-positions DP3g95p5maf05.fil5.lowQDloci --out DP3g95p5maf05.fil5
+# After filtering, kept 801625 out of a possible 895079 Sites
+cut -f3 DP3g95p5maf05.fil5.ldepth > DP3g95p5maf05.fil5.site.depth
+mawk '!/D/' DP3g95p5maf05.fil5.site.depth | mawk -v x=28 '{print $1/x}' > meandepthpersite
+
+#visualize
+gnuplot << \EOF
+set terminal dumb size 120, 30
+set autoscale
+set xrange [10:150]
+unset label
+set title "Histogram of mean depth per site"
+set ylabel "Number of Occurrences"
+set xlabel "Mean Depth"
+binwidth=1
+bin(x,width)=width*floor(x/width) + binwidth/2.0
+set xtics 5
+plot 'meandepthpersite' using (bin($1,binwidth)):(1.0) smooth freq with boxes
+pause -1
+EOF
+#
+vcftools --vcf  DP3g95p5maf05.fil5.vcf --recode-INFO-all --out DP3g95p5maf05.FIL --max-meanDP 50 --exclude-positions DP3g95p5maf05.fil5.lowQDloci --recode
+perl -pe "s/\d\/\.|\.\/\d/\.\/\./g" DP3g95p5maf05.FIL.recode.vcf > new.with.no.calls.vcf
+vcftools --vcf  new.with.no.calls.vcf --plink --out DP3g95p5maf05.FIL.recode
+# edit ped file with needed phenotype information
+cut -f7- DP3g95p5maf05.FIL.recode.ped > master_data # edit file manually using nano
+
+#cut -f1,2,3,4,5,6 DP3g95p5maf05.FIL.recode.ped > raw_head
+#cp ../../raw_head .
+paste raw_head master_data > DP3g95p5maf05.FIL.recode.ped
+
+plink=/data/programs/plink_1.9/plink
+$plink --file DP3g95p5maf05.FIL.recode --assoc --adjust --aec -out DP3g95p5maf05.FIL.recode
+head DP3g95p5maf05.FIL.recode.assoc.adjusted
+
+# harsher mean depth
+vcftools --vcf new.with.no.calls.vcf --max-missing 0.95 --maf 0.05 --recode --recode-INFO-all --out DP3g95p5maf05.FIL.DP15 --min-meanDP 15
+vcftools --vcf  DP3g95p5maf05.FIL.DP15.recode.vcf --plink --out  DP3g95p5maf05.FIL.DP15.recode
+cut -f7- DP3g95p5maf05.FIL.DP15.recode.ped > master_data # edit file manually using nano
+
+paste raw_head master_data > DP3g95p5maf05.FIL.DP15.recode.ped
+
+plink=/data/programs/plink_1.9/plink
+$plink --file  DP3g95p5maf05.FIL.DP15.recode --assoc --adjust --aec --out DP3g95p5maf05.FIL.DP15.recode
+
+# and even harsher depth
+vcftools --vcf DP3g95p5maf05.FIL.DP15.recode.vcf --max-missing 0.95 --maf 0.05 --recode --recode-INFO-all --out DP3g95p5maf05.FIL.DP20 --min-meanDP 20
+vcftools --vcf  DP3g95p5maf05.FIL.DP20.recode.vcf --plink --out  DP3g95p5maf05.FIL.DP20.recode
+cut -f7- DP3g95p5maf05.FIL.DP20.recode.ped > master_data # edit file manually using nano
+
+paste raw_head master_data > DP3g95p5maf05.FIL.DP20.recode.ped
+
+plink=/data/programs/plink_1.9/plink
+$plink --file DP3g95p5maf05.FIL.DP20.recode --assoc --adjust --aec --out DP3g95p5maf05.FIL.DP20.recode
+head DP3g95p5maf05.FIL.DP20.recode.assoc.adjusted

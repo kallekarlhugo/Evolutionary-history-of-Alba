@@ -1,0 +1,153 @@
+basepath=$(pwd)/
+cd proteins
+proteins=$(pwd)/odb10_arthropoda_proteins.fa
+cd ../assemblies
+genomepath=$(pwd)/
+#ln -s /mnt/griffin/kaltun/genomes/Ce_fixed.fa .
+#ln -s /mnt/griffin/kaltun/ceu/polish/Ce_fixed/NGM_pilon/*fasta .
+#ln -s /mnt/griffin/kaltun/ceu/polish/Ce_fixed/SNAP_pilon/*fasta .
+#ln -s /mnt/griffin/kaltun/ceu/polish/Ce_fixed/BWAmem_pilon/*fasta .
+#ln -s /mnt/griffin/kaltun/ceu/polish/Ce_fixed/annotation/masked/*softmasked.fa .
+cd ../rnaseq
+bampath=$(pwd)/
+cd ..
+
+#set paths
+#cp -r /data/programs/Augustus_v3.3.3/config/ $(pwd)/augustus_config
+export AUGUSTUS_CONFIG_PATH=$(pwd)/augustus_config
+# now set paths to the other tools
+export PATH=/data/programs/BRAKER2_v2.1.5/scripts//:$PATH
+export AUGUSTUS_BIN_PATH=/mnt/griffin/kaltun/software/Augustus/bin
+export AUGUSTUS_SCRIPTS_PATH=/mnt/griffin/kaltun/software/Augustus/scripts
+export DIAMOND_PATH=/data/programs/diamond_v0.9.24/
+export GENEMARK_PATH=/data/programs/gmes_linux_64.4.61_lic/
+export BAMTOOLS_PATH=/data/programs/bamtools-2.5.1/bin/
+export PROTHINT_PATH=/data/programs/ProtHint/bin/
+export ALIGNMENT_TOOL_PATH=/data/programs/gth-1.7.0-Linux_x86_64-64bit/bin
+export SAMTOOLS_PATH=/data/programs/samtools-1.10/
+export MAKEHUB_PATH=/data/programs/MakeHub/
+
+cd $basepath && cd rna_prot
+rna_prot=$(pwd)
+# Parnassius
+genome=Parnassius_apollo_shasta7k_pepper.fasta.PolcaCorrected.UPPER.fa.masked.purged.fa
+bamfile=${bampath}Ce_fixed_NGM_polish_masked_merged.sorted.bam
+mkdir ${genome%.fa}_K && cd ${genome%.fa}_K
+braker.pl --species=${genome%.fa}_rnaprot_K --genome=${genomepath}$genome --prot_seq=$proteins --bam=$bamfile --softmasking --etpmode --cores=40 --gff3
+genome=Ce_fixed_NGM_polish.fa
+cd $rna_prot && mkdir ${genome%.fa}_K && cd ${genome%.fa}_K
+braker.pl --species=${genome%.fa}_rnaprot_K --genome=${genomepath}$genome --prot_seq=$proteins --bam=$bamfile --etpmode --cores=40 --gff3
+
+# BWAmem
+
+genome=Ce_fixed_BWA_polish.softmasked.fa
+bamfile=${bampath}Ce_fixed_BWA_polish_merged.sorted.bam
+
+cd $rna_prot && mkdir ${genome%.fa}_K && cd ${genome%.fa}_K
+braker.pl --species=${genome%.fa}_rnaprot_K --genome=${genomepath}$genome --prot_seq=$proteins --bam=$bamfile --softmasking --etpmode --cores=40 --gff3
+genome=Ce_fixed_BWA_polish.fa
+cd $rna_prot && mkdir ${genome%.fa}_K && cd ${genome%.fa}_K
+braker.pl --species=${genome%.fa}_rnaprot_K --genome=${genomepath}$genome --prot_seq=$proteins --bam=$bamfile --etpmode --cores=40 --gff3
+
+# original
+
+genome=Ce_fixed_softmasked.softmasked.fa
+bamfile=${bampath}Ce_fixed_softmasked_merged.sorted.bam
+
+cd $rna_prot && mkdir ${genome%.fa}_K && cd ${genome%.fa}_K
+braker.pl --species=${genome%.fa}_rnaprot_K --genome=${genomepath}$genome --prot_seq=$proteins --bam=$bamfile --softmasking --etpmode --cores=40 --gff3
+genome=Ce_fixed_BWA_polish.fa
+cd $rna_prot && mkdir ${genome%.fa}_K && cd ${genome%.fa}_K
+braker.pl --species=${genome%.fa}_rnaprot_K --genome=${genomepath}$genome --prot_seq=$proteins --bam=$bamfile --etpmode --cores=40 --gff3
+
+
+# SNAP
+
+genome=Ce_fixed_SNAP_polish.fa
+bamfile=${bampath}Ce_fixed_SNAP_polish_merged.sorted.bam
+cd $rna_prot && mkdir ${genome%.fa}_K && cd ${genome%.fa}_K
+braker.pl --species=${genome%.fa}_rnaprot_K --genome=${genomepath}$genome --prot_seq=$proteins --bam=$bamfile --etpmode --cores=40 --gff3
+
+
+
+## prot only
+# only proteins
+cd $basepath && mkdir prot && cd prot
+prot=$(pwd)
+# NGM
+genome=Ce_fixed_NGM_polish_masked.fasta.softmasked.fa
+bamfile=${bampath}Ce_fixed_NGM_polish_masked_merged.sorted.bam
+cd $prot && mkdir ${genome%.fa} && cd ${genome%.fa}
+braker.pl --species=${genome%.fa}_prot --genome=${genomepath}$genome --prot_seq=$proteins --cores=40 --gff3 --softmasking
+genome=Ce_fixed_NGM_polish.fa
+cd $prot && mkdir ${genome%.fa} && cd ${genome%.fa}
+braker.pl --species=${genome%.fa}_prot --genome=${genomepath}$genome --prot_seq=$proteins --cores=40 --gff3
+
+# BWAmem
+genome=Ce_fixed_BWA_polish.softmasked.fa
+bamfile=${bampath}Ce_fixed_BWA_polish_merged.sorted.bam
+
+cd $prot && mkdir ${genome%.fa} && cd ${genome%.fa}
+braker.pl --species=${genome%.fa}_prot --genome=${genomepath}$genome --prot_seq=$proteins --cores=40 --gff3 --softmasking
+genome=Ce_fixed_BWA_polish.fa
+cd $prot && mkdir ${genome%.fa} && cd ${genome%.fa}
+braker.pl --species=${genome%.fa}_prot --genome=${genomepath}$genome --prot_seq=$proteins --cores=40 --gff3
+
+# SNAP
+genome=Ce_fixed_SNAP_polish_masked.fasta.softmasked.fa
+bamfile=${bampath}Ce_fixed_SNAP_polish_masked_merged.sorted.bam
+cd $prot && mkdir ${genome%.fa} && cd ${genome%.fa}
+braker.pl --species=${genome%.fa}_prot --genome=${genomepath}$genome --prot_seq=$proteins --cores=40 --gff3 --softmasking
+genome=Ce_fixed_SNAP_polish.fa
+cd $prot && mkdir ${genome%.fa} && cd ${genome%.fa}
+braker.pl --species=${genome%.fa}_prot --genome=${genomepath}$genome --prot_seq=$proteins --cores=40 --gff3
+
+# original
+genome=Ce_fixed_softmasked.softmasked.fa
+bamfile=${bampath}Ce_fixed_softmasked_merged.sorted.bam
+cd $prot && mkdir ${genome%.fa} && cd ${genome%.fa}
+braker.pl --species=${genome%.fa}_prot --genome=${genomepath}$genome --prot_seq=$proteins --cores=40 --gff3 --softmasking
+genome=Ce_fixed.fa
+cd $prot && mkdir ${genome%.fa} && cd ${genome%.fa}
+braker.pl --species=${genome%.fa}_prot --genome=${genomepath}$genome --prot_seq=$proteins --cores=40 --gff3
+
+
+
+# RNA
+
+cd $basepath && mkdir rna_K && cd rna_K
+rna=$(pwd)
+# NGM
+genome=Ce_fixed_NGM_polish_masked.fasta.softmasked.fa
+bamfile=${bampath}Ce_fixed_NGM_polish_masked_merged.sorted.bam
+cd $rna && mkdir ${genome%.fa} && cd ${genome%.fa}
+braker.pl --species=${genome%.fa}_rna_K --genome=${genomepath}$genome --bam=$bamfile --cores=40 --gff3 --softmasking
+genome=Ce_fixed_NGM_polish.fa
+cd $rna && mkdir ${genome%.fa} && cd ${genome%.fa}
+braker.pl --species=${genome%.fa}_rna_K --genome=${genomepath}$genome --bam=$bamfile --cores=40 --gff3
+# BWAmem
+genome=Ce_fixed_BWA_polish.softmasked.fa
+bamfile=${bampath}Ce_fixed_BWA_polish_merged.sorted.bam
+cd $rna && mkdir ${genome%.fa} && cd ${genome%.fa}
+braker.pl --species=${genome%.fa}_rna_K --genome=${genomepath}$genome --bam=$bamfile --cores=40 --gff3 --softmasking
+genome=Ce_fixed_BWA_polish.fa
+cd $rna && mkdir ${genome%.fa} && cd ${genome%.fa}
+braker.pl --species=${genome%.fa}_rna_K --genome=${genomepath}$genome --bam=$bamfile --cores=40 --gff3
+
+# SNAP
+genome=Ce_fixed_SNAP_polish_masked.fasta.softmasked.fa
+bamfile=${bampath}Ce_fixed_SNAP_polish_masked_merged.sorted.bam
+cd $rna && mkdir ${genome%.fa} && cd ${genome%.fa}
+braker.pl --species=${genome%.fa}_rna_K --genome=${genomepath}$genome --bam=$bamfile --cores=40 --gff3 --softmasking
+genome=Ce_fixed_SNAP_polish.fa
+cd $rna && mkdir ${genome%.fa} && cd ${genome%.fa}
+braker.pl --species=${genome%.fa}_rna_K --genome=${genomepath}$genome --bam=$bamfile --cores=40 --gff3
+
+# original
+genome=Ce_fixed_softmasked.softmasked.fa
+bamfile=${bampath}Ce_fixed_softmasked_merged.sorted.bam
+cd $rna && mkdir ${genome%.fa} && cd ${genome%.fa}
+braker.pl --species=${genome%.fa}_rna_K --genome=${genomepath}$genome --bam=$bamfile --cores=40 --gff3 --softmasking
+genome=Ce_fixed.fa
+cd $rna && mkdir ${genome%.fa} && cd ${genome%.fa}
+braker.pl --species=${genome%.fa}_rna_K --genome=${genomepath}$genome --bam=$bamfile --cores=40 --gff3
